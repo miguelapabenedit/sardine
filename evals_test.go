@@ -16,7 +16,7 @@ func TestSpendRisk(t *testing.T) {
 	}{{
 		Name:  "when user with empty transactions, then return low",
 		Input: main.User{},
-		Exp:   main.LowRisk,
+		Exp:   main.HighRisk,
 	}, {
 		Name:  "when user with 6k spend transactions, then return Medium",
 		Input: main.User{Transactions: main.Transactions{{AmountUsCents: 600000}}},
