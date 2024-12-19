@@ -59,6 +59,8 @@ jobs:
         echo "new_version=$NEW_VERSION" >> $GITHUB_ENV      
 
     - name: Tag the release
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         git tag ${{ env.new_version }}
         git push origin ${{ env.new_version }}
