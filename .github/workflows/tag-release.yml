@@ -1,69 +1,52 @@
-name: Tag Release on PR Merge
+name: Auto Tag Version
 
 on:
   pull_request:
-    types: [closed] # Trigger when a PR is closed
+    types:
+      - closed
 
 jobs:
-  tag_release:
-    # Run this job only if the PR is merged
+  tag-version:
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Set up Git
-      run: |
-        git config user.name "miguelapabenedit"
-        git config user.email "miguell.beneditt@gmail.com"
+      - name: Get current tag
+        id: get_current_tag
+        run: |
+          # Get the latest tag, default to v0.0.0 if no tags exist
+          git fetch --tags
+          TAG=$(git describe --tags --abbrev=0 || echo "v0.0.0")
+          echo "current_tag=$TAG" >> $GITHUB_ENV
 
-    - name: Get current version
-      id: get_version
-      run: |
-        # Get the latest tag or default to 0.0.0 if no tags exist
-        CURRENT_VERSION=$(git tag --sort=-v:refname | head -n 1)
-        if [ -z "$CURRENT_VERSION" ]; then
-          CURRENT_VERSION="0.0.0"
-        fi
-        echo "current_version=$CURRENT_VERSION" >> $GITHUB_ENV
+      - name: Determine new version
+        id: set_version
+        run: |
+          # Extract version components
+          IFS='.' read -r major minor patch <<< "${current_tag#v}"
+          
+          # Determine the type of bump based on PR title
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          if [[ "$PR_TITLE" == *"major"* ]]; then
+            major=$((major + 1))
+            minor=0
+            patch=0
+          elif [[ "$PR_TITLE" == *"minor"* ]]; then
+            minor=$((minor + 1))
+            patch=0
+          else
+            patch=$((patch + 1))
+          fi
 
-    - name: Increment version
-      id: increment_version
-      run: |
-        # Read the current version from environment
-        CURRENT_VERSION=${{ env.current_version }}
+          # Construct new tag
+          NEW_TAG="v$major.$minor.$patch"
+          echo "new_tag=$NEW_TAG" >> $GITHUB_ENV
 
-        # Parse the version into major, minor, and patch
-        if [[ "$CURRENT_VERSION" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
-          MAJOR=${BASH_REMATCH[1]}
-          MINOR=${BASH_REMATCH[2]}
-          PATCH=${BASH_REMATCH[3]}
-        else
-          # Fallback to default version parts if parsing fails
-          MAJOR=0
-          MINOR=0
-          PATCH=0
-        fi
-
-        # Normalize the PR title to avoid syntax issues
-        NORMALIZED_TITLE=$(echo "${{ github.event.pull_request.title }}" | sed 's/["']//g')
-
-        # Increment the appropriate part based on PR title
-        case "$NORMALIZED_TITLE" in
-          *#major*) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
-          *#minor*) MINOR=$((MINOR + 1)); PATCH=0 ;;
-          *)        PATCH=$((PATCH + 1)) ;;
-        esac
-
-        # Construct the new version
-        NEW_VERSION="$MAJOR.$MINOR.$PATCH"
-        echo "new_version=$NEW_VERSION" >> $GITHUB_ENV
-
-    - name: Tag the release
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        git tag ${{ env.new_version }}
-        git push origin ${{ env.new_version }}
+      - name: Create new tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag ${{ env.new_tag }}
+          git push origin ${{ env.new_tag }}
