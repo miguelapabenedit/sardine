@@ -2,10 +2,11 @@ name: Tag Release on PR Merge
 
 on:
   pull_request:
-    types: [closed]
+    types: [closed] # Trigger when a PR is closed
 
 jobs:
   tag_release:
+    # Run this job only if the PR is merged
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
 
@@ -21,15 +22,19 @@ jobs:
     - name: Get current version
       id: get_version
       run: |
-        # Default to 0.0.0 if no tags exist
-        CURRENT_VERSION=$(git tag --sort=-v:refname | head -n 1 || echo "0.0.0")
+        # Get the latest tag or default to 0.0.0 if no tags exist
+        CURRENT_VERSION=$(git tag --sort=-v:refname | head -n 1)
+        if [ -z "$CURRENT_VERSION" ]; then
+          CURRENT_VERSION="0.0.0"
+        fi
         echo "current_version=$CURRENT_VERSION" >> $GITHUB_ENV
 
     - name: Increment version
       id: increment_version
       run: |
-        # Parse current version
-        IFS='.' read -r -a PARTS <<< "$CURRENT_VERSION"
+        # Parse the current version
+        CURRENT_VERSION=${{ env.current_version }}
+        IFS='.' read -r -a PARTS <<< "$CURRENT_VERSION" || PARTS=(0 0 0)
         MAJOR=${PARTS[0]}
         MINOR=${PARTS[1]}
         PATCH=${PARTS[2]}
