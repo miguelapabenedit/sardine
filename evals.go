@@ -1,5 +1,6 @@
 package main
 
+// t
 func SpendRisk(u User) string {
 	txn := u.GetLastTransaction()
 	if txn.AmountUsCents > dolarToCents(10000) {
