@@ -32,22 +32,31 @@ jobs:
     - name: Increment version
       id: increment_version
       run: |
-        # Parse the current version
+        # Read the current version from environment
         CURRENT_VERSION=${{ env.current_version }}
-        IFS='.' read -r -a PARTS <<< "$CURRENT_VERSION" || PARTS=(0 0 0)
-        MAJOR=${PARTS[0]}
-        MINOR=${PARTS[1]}
-        PATCH=${PARTS[2]}
-
-        # Increment the appropriate part
+    
+        # Parse the version into major, minor, and patch
+        if [[ "$CURRENT_VERSION" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+          MAJOR=${BASH_REMATCH[1]}
+          MINOR=${BASH_REMATCH[2]}
+          PATCH=${BASH_REMATCH[3]}
+        else
+          # Fallback to default version parts if parsing fails
+          MAJOR=0
+          MINOR=0
+          PATCH=0
+        fi
+    
+        # Increment the appropriate part based on PR title
         case "${{ github.event.pull_request.title }}" in
-          *#major*) ((MAJOR+=1)) MINOR=0 PATCH=0 ;;
-          *#minor*) ((MINOR+=1)) PATCH=0 ;;
-          *)        ((PATCH+=1)) ;;
+          *#major*) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
+          *#minor*) MINOR=$((MINOR + 1)); PATCH=0 ;;
+          *)        PATCH=$((PATCH + 1)) ;;
         esac
-
+    
+        # Construct the new version
         NEW_VERSION="$MAJOR.$MINOR.$PATCH"
-        echo "new_version=$NEW_VERSION" >> $GITHUB_ENV
+        echo "new_version=$NEW_VERSION" >> $GITHUB_ENV      
 
     - name: Tag the release
       run: |
