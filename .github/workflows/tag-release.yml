@@ -24,25 +24,27 @@ jobs:
       - name: Determine new version
         id: set_version
         run: |
-          # Extract version components
-          IFS='.' read -r major minor patch <<< "${current_tag#v}"
-          
-          # Determine the type of bump based on PR title
-          PR_TITLE="${{ github.event.pull_request.title }}"
-          if [[ "$PR_TITLE" == *"major"* ]]; then
-            major=$((major + 1))
-            minor=0
-            patch=0
-          elif [[ "$PR_TITLE" == *"minor"* ]]; then
-            minor=$((minor + 1))
-            patch=0
-          else
-            patch=$((patch + 1))
-          fi
+            # Extract version components
+            IFS='.' read -r major minor patch <<< "${current_tag#v}"
 
-          # Construct new tag
-          NEW_TAG="v$major.$minor.$patch"
-          echo "new_tag=$NEW_TAG" >> $GITHUB_ENV
+            # Get PR title safely
+            PR_TITLE=$(echo "${{ github.event.pull_request.title }}" | sed 's/"/\\"/g')
+
+            # Determine the type of bump based on PR title
+            if [[ "$PR_TITLE" == *"major"* ]]; then
+              major=$((major + 1))
+              minor=0
+              patch=0
+            elif [[ "$PR_TITLE" == *"minor"* ]]; then
+              minor=$((minor + 1))
+              patch=0
+            else
+              patch=$((patch + 1))
+            fi
+
+            # Construct new tag
+            NEW_TAG="v$major.$minor.$patch"
+            echo "new_tag=$NEW_TAG" >> $GITHUB_ENV
 
       - name: Create new tag
         run: |
